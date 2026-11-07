@@ -36,7 +36,7 @@ There are no analytics, no telemetry, no advertising, and nothing is sold.
 
 ## Revoking access
 
-- Google/YouTube: https://myaccount.google.com/permissions
+- Google/YouTube: https://myaccount.google.com/permissions (also reachable from Google's security settings, https://security.google.com/settings/security/permissions)
 - Twitch: Settings → Connections, at https://www.twitch.tv/settings/connections
 
 Deleting the stream manager's data folder on the streamer's computer removes everything it stored.

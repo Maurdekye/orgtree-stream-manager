@@ -33,7 +33,7 @@ Native: `cargo build --release -p sm-bin`; tests: `cargo test --workspace`.
 
 ## Privacy
 
-See [PRIVACY.md](PRIVACY.md).
+See [PRIVACY.md](PRIVACY.md) and the [terms of service](TERMS.md).
 
 ## License
 
