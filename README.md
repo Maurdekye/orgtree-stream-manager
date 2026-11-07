@@ -31,6 +31,14 @@ Native: `cargo build --release -p sm-bin`; tests: `cargo test --workspace`.
    - **OBS:** the obs-websocket password.
 3. Full steps: [docs/setup.md](docs/setup.md). How agents use it: [docs/listener.md](docs/listener.md).
 
+## Stats panel in Orgtree
+
+`apps/stream-stats.orgtree-app` is a ready-made Orgtree app: a read-only live view of chat, donations, rate limits and moderation. Its source is `apps/stats-panel` (`node apps/stats-panel/build.mjs` rebuilds the HTML).
+
+1. In Orgtree, import `apps/stream-stats.orgtree-app` as an org app (or have an agent run `orgtree_apps app_import` on it).
+2. Point the stream manager's stats output at the org's scratch folder: set `SM_STATS_DIR` to `<org scratch>/stream-manager` (see [docs/setup.md](docs/setup.md)). The panel reads `stream-manager/stats.json` there every 5 seconds.
+3. Open a panel of the app. The file holds viewer names and chat text, so treat it like the chat itself.
+
 ## Privacy
 
 See [PRIVACY.md](PRIVACY.md) and the [terms of service](TERMS.md).
