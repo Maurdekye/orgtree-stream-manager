@@ -1,0 +1,79 @@
+# stream-manager config (plan §2). Secrets never go here: they live in secrets.toml in
+# the read-only secrets mount. Every key has a default; unknown keys are refused.
+
+[server]
+events_addr = "0.0.0.0:8787"      # inside the container; compose publishes it on 127.0.0.1 only
+overlay_addr = "0.0.0.0:8788"     # overlay page for the OBS browser source, and /healthz
+data_dir = "/data"
+stats_path = "/out/stats.json"    # /out is <org scratch>/stream-manager
+replay_max = 200
+replay_window_s = 900
+chat_retention_days = 7
+
+[twitch]
+enabled = true
+client_id = "your-twitch-app-client-id"
+broadcaster_id = "100000001"      # the channel's user id
+bot_user_id = "100000002"         # the bot account's user id (a moderator of the channel)
+
+[youtube]
+enabled = false
+chat_mode = "stream"              # "stream" (pushed chat) or "poll" (the fallback poller)
+budget_hours = 24.0               # poll mode only: spread the daily quota over this many streaming hours
+membership_usd = 4.99             # the API reports no membership price
+
+[streamlabs]
+enabled = false
+
+[obs]
+url = "ws://host.docker.internal:4455"
+afk_scene = "AFK"
+live_scene = "Live"
+fade_transition = "Fade"
+cut_transition = "Cut"
+
+# Auto-sleep: after idle_min with no agent in the org running a turn, OBS switches to `scene`
+# (a plain switch: give that scene a slow Transition Override in OBS); the first turn switches
+# back to obs.live_scene. Needs the org.turns relay watchdogs. Manual AFK wins; never ends the stream.
+[sleep]
+enabled = false
+scene = "Sleeping"
+idle_min = 10
+min_sleep_s = 15
+
+[bridge]
+chat_say_enabled = true
+afk_quiet_min = 30
+afk_fade_s = 120
+drops_campaign = false
+gate_start_interval_s = 120
+gate_start_donation_usd = 0
+auto_relax = true
+deny = ["Springfield", "acme-pc"]   # owner names, city, org and mail hub names, machine name
+
+[currency]                        # USD per one unit; USD is always 1
+EUR = 1.08
+GBP = 1.27
+
+[[effect]]
+id = "chime"
+cooldown_s = 10
+obs_media_input = "SFX Chime"
+
+[[effect]]
+id = "airhorn"
+cooldown_s = 30
+obs_media_input = "SFX Airhorn"
+
+[[effect]]
+id = "confetti"
+cooldown_s = 20
+overlay = "confetti"                # overlay page animation: confetti, pulse or banner
+
+[[donation_effect]]
+min_usd = 1.0
+effect = "chime"
+
+[[donation_effect]]
+min_usd = 5.0
+effect = "airhorn"

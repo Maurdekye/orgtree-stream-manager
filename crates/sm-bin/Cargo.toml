@@ -1,0 +1,36 @@
+[package]
+name = "sm-bin"
+description = "Stream manager program: config, token refresh, HTTPS/OBS executors and the run loop"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "stream-manager"
+path = "src/main.rs"
+
+[dependencies]
+sm-core = { path = "../sm-core" }
+sm-store = { path = "../sm-store" }
+sm-server = { path = "../sm-server" }
+sm-connectors = { path = "../sm-connectors" }
+sm-bridge = { path = "../sm-bridge" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
+axum = { version = "0.8", features = ["ws"] }
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "native-tokio", "ring", "tls12"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+http-body-util = "0.1"
+async-trait = "0.1"
+serde.workspace = true
+serde_json.workspace = true
+toml = "0.8"
+thiserror.workspace = true
+ring = "0.17"
+base64 = "0.23"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+
+[dev-dependencies]
+tokio-tungstenite = "0.29"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "test-util"] }

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stream stats</title>
+<style>
+  :root {
+    color-scheme: var(--orgtree-color-scheme, light dark);
+    --bg: var(--orgtree-bg, #ffffff);
+    --card: var(--orgtree-card, #f6f6f7);
+    --text: var(--orgtree-text, #1f2328);
+    --strong: var(--orgtree-text-strong, #0b0d10);
+    --dim: var(--orgtree-text-dim, #6b7280);
+    --border: var(--orgtree-border, #d0d7de);
+    --soft: var(--orgtree-border-soft, #e5e7eb);
+    --accent: var(--orgtree-accent, #6366f1);
+    --accent-soft: var(--orgtree-accent-soft, #eef2ff);
+    --ok: var(--orgtree-success, #16a34a);
+    --warn: var(--orgtree-warning, #d97706);
+    --bad: var(--orgtree-danger, #dc2626);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 12px/1.35 system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .chip { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); white-space: nowrap; }
+  .chip.live { border-color: var(--ok); color: var(--ok); }
+  .chip.afk { border-color: var(--warn); color: var(--warn); }
+  .chip.sleeping { border-color: var(--accent); color: var(--accent); }
+  .chip.offline { color: var(--dim); }
+  .stat { color: var(--dim); }
+  .stat b { color: var(--strong); font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); display: inline-block; }
+  .dot.up { background: var(--ok); } .dot.down { background: var(--bad); }
+  #stale { display: none; padding: 6px 10px; background: var(--warn); color: #000; }
+  #stale.show { display: block; }
+  /* One view, nothing to click (USER m87e53ef60dbe): chat fills the left column; the other three stack on the right.
+     Newest rows come first and older ones are clipped, so nothing ever needs scrolling. */
+  main { flex: 1; min-height: 0; display: grid; gap: 6px; padding: 6px; grid-template-columns: 1.5fr 1fr; grid-template-rows: 1fr 1fr 1fr;
+         grid-template-areas: "chat donations" "chat limits" "chat moderation"; }
+  section { min-height: 0; overflow: hidden; border: 1px solid var(--soft); border-radius: 6px; background: var(--bg); display: flex; flex-direction: column; }
+  section h2 { margin: 0; padding: 3px 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); background: var(--card); border-bottom: 1px solid var(--soft); }
+  section .body { flex: 1; min-height: 0; overflow: hidden; padding: 0 4px; }
+  #sec-chat { grid-area: chat; } #sec-donations { grid-area: donations; } #sec-limits { grid-area: limits; } #sec-moderation { grid-area: moderation; }
+  .detail { color: var(--dim); padding: 2px 6px; border-bottom: 1px solid var(--soft); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 2px 4px; border-bottom: 1px solid var(--soft); vertical-align: top; }
+  th { color: var(--dim); font-weight: 500; position: sticky; top: 0; background: var(--bg); }
+  td.text { white-space: pre-wrap; word-break: break-word; }
+  .tag { font-size: 11px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--border); }
+  .tag.ok { color: var(--ok); border-color: var(--ok); }
+  .tag.held { color: var(--warn); border-color: var(--warn); }
+  .tag.filtered { color: var(--bad); border-color: var(--bad); }
+  .empty { color: var(--dim); padding: 6px 4px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header id="head">
+  <span class="chip offline" id="state-twitch">Twitch · offline</span>
+  <span class="chip offline" id="state-youtube">YouTube · offline</span>
+  <span class="chip" id="gate">Gate · unknown</span>
+  <span class="stat">uptime <b id="uptime">–</b></span>
+  <span class="stat">viewers <b id="viewers">–</b></span>
+  <span class="stat">session <b id="total">$0</b></span>
+  <span class="dot" id="health" title="Connections"></span>
+</header>
+<div id="stale" role="status">Stream manager not updating.</div>
+<main>
+  <section id="sec-chat"><h2>Chat</h2><div class="body" id="body-chat"></div></section>
+  <section id="sec-donations"><h2>Donations</h2><div class="body" id="body-donations"></div></section>
+  <section id="sec-limits"><h2>Rate limits</h2><div class="detail" id="gate-detail"></div><div class="body" id="body-limits"></div></section>
+  <section id="sec-moderation"><h2>Moderation</h2><div class="body" id="body-moderation"></div></section>
+</main>
+<script>
+/*STATS_LIB*/
+</script>
+<script>
+(function () {
+  'use strict';
+  // Viewer names and messages are untrusted: they are only ever set as textContent.
+  const L = window.StatsLib;
+  const PATH = 'stream-manager/stats.json';
+  const POLL_MS = 5000;
+  let snap = null;
+  let error = '';
+
+  function el(tag, attrs, children) {
+    const e = document.createElement(tag);
+    if (attrs) for (const k of Object.keys(attrs)) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'class') e.className = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    if (children) for (const c of children) e.appendChild(c);
+    return e;
+  }
+  function time(iso) {
+    const t = Date.parse(iso);
+    return Number.isNaN(t) ? '' : new Date(t).toLocaleTimeString();
+  }
+  function table(headers, rows, emptyText) {
+    if (!rows.length) return el('div', { class: 'empty', text: emptyText });
+    const thead = el('thead', null, [el('tr', null, headers.map(h => el('th', { text: h })))]);
+    const tbody = el('tbody', null, rows.map(r => el('tr', null, r)));
+    return el('table', null, [thead, tbody]);
+  }
+  function td(text, cls) { return el('td', { text: text == null ? '' : String(text), class: cls || '' }); }
+
+  function renderHeader() {
+    const s = (snap && snap.state) || {};
+    for (const p of ['twitch', 'youtube']) {
+      const st = s[p] || 'offline';
+      const chip = document.getElementById('state-' + p);
+      chip.className = 'chip ' + (st === 'live' ? 'live' : st === 'afk' ? 'afk' : st === 'sleeping' ? 'sleeping' : 'offline');
+      chip.textContent = (p === 'twitch' ? 'Twitch' : 'YouTube') + ' · ' + st.toUpperCase();
+    }
+    const gate = snap && snap.gate;
+    const g = document.getElementById('gate');
+    g.textContent = L.gateLabel(gate);
+    const sev = L.gateSeverity(gate);
+    g.style.borderColor = sev > 0 ? 'color-mix(in srgb, var(--warn) ' + Math.round(sev * 100) + '%, var(--border))' : '';
+    const tip = [];
+    if (gate) {
+      if (gate.by) tip.push('set by ' + gate.by);
+      if (gate.reason) tip.push('reason: ' + gate.reason);
+      if (typeof gate.interruptions_per_min_5 === 'number') tip.push(gate.interruptions_per_min_5 + ' interruptions/min (5 min)');
+      if (gate.relax_at) tip.push('relaxes in ' + L.formatCountdown(L.secondsUntil(gate.relax_at, Date.now())));
+    }
+    g.title = tip.join('\n');
+    // The tooltip needs a hover; the same detail is also shown in the Rate limits section.
+    document.getElementById('gate-detail').textContent = [L.gateLabel(gate)].concat(tip).join(' · ');
+    const up = s.uptime_s;
+    document.getElementById('uptime').textContent = typeof up === 'number' ? L.formatCountdown(up) : '–';
+    const v = s.viewers || {};
+    const vt = (v.twitch || 0) + (v.youtube || 0);
+    document.getElementById('viewers').textContent = s.viewers ? String(vt) : '–';
+    const tot = snap && snap.totals;
+    document.getElementById('total').textContent = '$' + L.formatUsd(tot ? tot.session_usd : 0);
+    const h = (snap && snap.health) || {};
+    const parts = Object.keys(h).filter(k => typeof h[k] === 'string');
+    const allUp = parts.length > 0 && parts.every(k => h[k] === 'up');
+    const dot = document.getElementById('health');
+    dot.className = 'dot ' + (parts.length === 0 ? '' : allUp ? 'up' : 'down');
+    dot.title = parts.map(k => k + ': ' + h[k]).join('\n') || 'no health data';
+    const stale = document.getElementById('stale');
+    const isStale = !snap || L.isStale(snap.at, Date.now());
+    stale.className = isStale ? 'show' : '';
+    stale.textContent = error ? 'Stream manager not updating: ' + error : 'Stream manager not updating.';
+  }
+
+  function renderChat() {
+    const rows = ((snap && snap.chat) || []).slice().reverse().map(c => {
+      const chip = L.statusChip(c.status);
+      return [td(time(c.ts)), td(c.platform === 'youtube' ? c.viewer + ' (YT)' : c.viewer), td(c.text, 'text'), el('td', null, [el('span', { class: 'tag ' + chip.kind, text: chip.label })])];
+    }).slice(0, 40);
+    document.getElementById('body-chat').replaceChildren(table(['Time', 'Viewer', 'Message', 'Status'], rows, 'No chat yet.'));
+  }
+  function renderDonations() {
+    const rows = ((snap && snap.donations) || []).slice().reverse().slice(0, 12).map(d => [
+      td(time(d.ts)), td(d.donor), td(d.source), td(d.usd == null ? '?' : '$' + L.formatUsd(d.usd), 'num'), td(d.text, 'text')
+    ]);
+    document.getElementById('body-donations').replaceChildren(table(['Time', 'Donor', 'Source', 'USD', 'Message'], rows, 'No donations yet.'));
+  }
+  function renderLimits() {
+    const now = Date.now();
+    const rows = ((snap && snap.limits) || []).map(l => {
+      const until = l.held_until ? L.secondsUntil(l.held_until, now) : L.secondsUntil(l.next_allowed_at, now);
+      const left = l.held_until ? 'held ' + L.formatCountdown(until) : L.formatCountdown(until);
+      return [td(l.name || l.viewer), td('$' + L.formatUsd(l.credit_usd), 'num'), td(l.max_chars, 'num'), td(left, 'num')];
+    }).slice(0, 12);
+    document.getElementById('body-limits').replaceChildren(table(['Viewer', 'Credit', 'Max chars', 'Can post in'], rows, 'Nobody is waiting.'));
+  }
+  function renderModeration() {
+    const mod = ((snap && snap.moderation) || []).map(m => ({ ts: m.ts, what: m.action, target: m.target, by: m.by, reason: m.reason }));
+    const gates = ((snap && snap.gate_history) || []).map(g => ({ ts: g.ts, what: 'gate ' + g.value, target: g.from + ' → ' + g.to, by: g.by, reason: g.reason }));
+    const rows = mod.concat(gates).sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts)).slice(0, 12).map(m => [td(time(m.ts)), td(m.what), td(m.target), td(m.by), td(m.reason, 'text')]);
+    document.getElementById('body-moderation').replaceChildren(table(['Time', 'Action', 'Target', 'By', 'Reason'], rows, 'No moderation yet.'));
+  }
+  function renderAll() { renderHeader(); renderChat(); renderDonations(); renderLimits(); renderModeration(); }
+
+  async function poll() {
+    try {
+      // [verify] files.open/read return shapes at the live trial; both forms are accepted.
+      const ref = await orgtree.files.open('scratch', PATH);
+      const id = ref && typeof ref === 'object' ? (ref.id || ref.file) : ref;
+      const r = await orgtree.files.read(id, { offset: 0, limit: 65536 });
+      if (r && r.eof === false) throw new Error('snapshot larger than one read');
+      snap = L.decodeSnapshot(r.base64 || r.data);
+      error = '';
+    } catch (e) {
+      error = (e && e.message) ? e.message : 'read failed';
+    }
+    renderAll();
+  }
+
+  renderAll();
+  poll();
+  setInterval(poll, POLL_MS);
+  setInterval(() => { renderHeader(); renderLimits(); }, 1000); // live countdowns between reads
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+/target
+*.db
+/secrets
+/out
+apps/stats-panel/dist/
+.env
+# never commit real settings, credentials or runtime data
+config.toml
+secrets.toml
+*.secrets.toml
+tokens/
+signin/
+*.code
+*.line
+*.log
+state.db*
+stats.json

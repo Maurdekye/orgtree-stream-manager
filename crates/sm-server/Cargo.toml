@@ -1,0 +1,20 @@
+[package]
+name = "sm-server"
+description = "Stream manager org WebSocket protocol: auth scopes, subscribe, replay, command dispatch"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+sm-core = { path = "../sm-core" }
+sm-store = { path = "../sm-store" }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+serde.workspace = true
+serde_json.workspace = true
+subtle = "2"
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio-tungstenite = "0.29"

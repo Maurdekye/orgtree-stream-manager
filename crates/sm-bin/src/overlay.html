@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>stream-manager overlay</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 700 42px/1.2 system-ui, sans-serif; }
+  #card { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); padding: 18px 32px; border-radius: 18px;
+          background: rgba(20, 20, 28, .82); color: #fff; text-align: center; opacity: 0; transition: opacity .4s; max-width: 80vw; }
+  #card.show { opacity: 1; }
+  #card .amount { font-size: 30px; opacity: .85; }
+  .pulse #card { animation: pulse 1.2s ease-in-out 3; }
+  .banner #card { top: auto; bottom: 6%; animation: slide 6s linear 1; }
+  @keyframes pulse { 50% { transform: translateX(-50%) scale(1.12); } }
+  @keyframes slide { from { left: 110%; } to { left: -60%; } }
+  .bit { position: absolute; top: -20px; width: 12px; height: 18px; animation: fall 3.5s linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+</style>
+</head>
+<body>
+<div id="card"><div class="label"></div><div class="amount"></div></div>
+<script>
+(function () {
+  'use strict';
+  // No audio here: sounds play through OBS media sources. Labels are set as text only.
+  var card = document.getElementById('card');
+  var label = card.querySelector('.label');
+  var amount = card.querySelector('.amount');
+  var hideTimer = null;
+  var COLORS = ['#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#a855f7'];
+
+  function confetti() {
+    for (var i = 0; i < 80; i++) {
+      var b = document.createElement('div');
+      b.className = 'bit';
+      b.style.left = (Math.random() * 100) + 'vw';
+      b.style.background = COLORS[i % COLORS.length];
+      b.style.animationDelay = (Math.random() * 0.8) + 's';
+      document.body.appendChild(b);
+      setTimeout(function (el) { return function () { el.remove(); }; }(b), 4500);
+    }
+  }
+
+  function show(msg) {
+    document.body.className = msg.animation === 'banner' ? 'banner' : msg.animation === 'pulse' ? 'pulse' : '';
+    label.textContent = msg.label ? msg.label : '';
+    amount.textContent = typeof msg.usd === 'number' ? '$' + msg.usd.toFixed(2) : '';
+    card.className = (msg.label || typeof msg.usd === 'number') ? 'show' : '';
+    if (msg.animation === 'confetti') confetti();
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function () { card.className = ''; }, 6000);
+  }
+
+  function connect() {
+    var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/overlay/ws');
+    ws.onmessage = function (e) { try { show(JSON.parse(e.data)); } catch (_) {} };
+    ws.onclose = function () { setTimeout(connect, 2000); };
+  }
+  connect();
+})();
+</script>
+</body>
+</html>

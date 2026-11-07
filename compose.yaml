@@ -1,0 +1,23 @@
+# stream-manager (plan §2). Edit the three host paths in .env (see docs/setup.md).
+services:
+  stream-manager:
+    build: .
+    image: orgtree-stream-manager:local
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    ports:
+      - "127.0.0.1:8787:8787"   # org events WebSocket (agents' watchdogs); loopback only
+      - "127.0.0.1:8788:8788"   # overlay page for the OBS browser source, and /healthz
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # OBS on the host
+    volumes:
+      - sm-data:/data                              # SQLite state, saved tokens, consent record
+      - ${SM_SECRETS_DIR}:/run/secrets/sm:ro       # secrets.toml, outside every Orgtree folder
+      - ${SM_STATS_DIR}:/out                       # <org scratch>/stream-manager (stats.json)
+      - ${SM_CONFIG_DIR}:/config:ro                # config.toml
+    tmpfs: [/tmp]
+volumes:
+  sm-data: {}

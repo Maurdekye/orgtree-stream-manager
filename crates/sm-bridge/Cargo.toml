@@ -1,0 +1,12 @@
+[package]
+name = "sm-bridge"
+description = "Stream manager bridge: connector events, agent commands and ticks through the core rules; publishes org events and emits platform actions"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+sm-core = { path = "../sm-core" }
+sm-connectors = { path = "../sm-connectors" }
+sm-server = { path = "../sm-server" }
+serde_json.workspace = true

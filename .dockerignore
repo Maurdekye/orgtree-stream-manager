@@ -1,0 +1,6 @@
+target
+.git
+apps/stats-panel/dist
+**/*.db
+secrets
+.env

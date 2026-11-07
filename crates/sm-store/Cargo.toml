@@ -1,0 +1,11 @@
+[package]
+name = "sm-store"
+description = "Stream manager storage: SQLite event log, replay cursors, viewers, credit ledger, audit"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde_json.workspace = true
+thiserror.workspace = true

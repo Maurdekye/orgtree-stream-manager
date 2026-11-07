@@ -1,0 +1,9 @@
+{
+  "name": "Stream stats",
+  "description": "Read-only stream stats: chat, donations, rate limits and moderation, from the stream manager's stats.json in this org's scratch folder.",
+  "events": [],
+  "capabilities": [],
+  "html": "dist/stats-panel.html",
+  "width": 760,
+  "height": 560
+}
